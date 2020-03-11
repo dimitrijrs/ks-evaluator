@@ -14,7 +14,7 @@ Simply copy and paste the `KolmogorovSmirnovEvaluator` class or the entire `ks_e
 1. `probability_col`: Name of the probability column.
 1. `actual_label_col`: Name of the column which contains the *correct* label - *NOT* the prediction!
 1. `positive_label`: (Optional) The positive label.
-1. `negative_label`: (Optional) The negative label. Must be of the same type as the `positive_label`.
+1. `negative_label`: (Optional) The negative label. Must be of the same type as the `positive_label`. If either of the `positive_label` or the `negative_label` is left empty, the evaluator will try to infer them from the data.
 1. `probability_partitions`: (Optional) A list of partitions for which the Kolmogorov-Smirnov distance will be calculated. For example, if the `probability_partitions = [0.2, 0.4]`, then the script will compute the Kolmogorov-Smirnov distance in the following intervals: `[0, 0.2]`, `(0.2, 0.4]`, and `(0.4, 1]`. The elements of this list *must* be in the range `(0, 1)`.
 
 After constructing the Evaluator object, you can perform the evaluation using `evaluator.evaluate()`.
