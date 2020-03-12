@@ -1,6 +1,14 @@
 # ks-evaluator
 2-sample Kolmogorov-Smirnov distance calculator for evaluating binary classification model predictions.
 
+## Changelog
+
+#### 2020-03-12
+Changed the constructor so that the same evaluator can be used to evaluate multiple datasets without having to instantiate another evaluator object.
+
+#### 2020-03-11
+First version of the script.
+
 ## What is this?
 This script computes the [Kolmogorov-Smirnov distance](https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Smirnov_test#Two-sample_Kolmogorov%E2%80%93Smirnov_test) between two empirical distributions. In this case, the empirical distributions are the distributions of the probability of being in the positive class (usually denoted class `1`) between samples that are actually in the positive class and samples that are actually in the negative class.
 
@@ -9,15 +17,14 @@ The Kolmogorov-Smirnov distance gives an idea of how close the two empirical dis
 Currently, this script does not perform a test of significance for the Kolmogorov-Smirnov score. It will be added if absolutely necessary.
 
 ## How do you use this?
-Simply copy and paste the `KolmogorovSmirnovEvaluator` class or the entire `ks_evaluator.py` into your project, and import the `KolmogorovSmirnovEvaluator` class. The Evaluator's constructor takes 6 arguments:
-1. `df`: A Spark DataFrame.
+Simply copy and paste the `KolmogorovSmirnovEvaluator` class or the entire `ks_evaluator.py` into your project, and import the `KolmogorovSmirnovEvaluator` class. The Evaluator's constructor takes 5 arguments:
 1. `probability_col`: Name of the probability column.
 1. `actual_label_col`: Name of the column which contains the *correct* label - *NOT* the prediction!
 1. `positive_label`: (Optional) The positive label.
 1. `negative_label`: (Optional) The negative label. Must be of the same type as the `positive_label`.
 1. `probability_partitions`: (Optional) A list of partitions for which the Kolmogorov-Smirnov distance will be calculated. For example, if the `probability_partitions = [0.2, 0.4]`, then the script will compute the Kolmogorov-Smirnov distance in the following intervals: `[0, 0.2]`, `(0.2, 0.4]`, and `(0.4, 1]`. The elements of this list *must* be in the range `(0, 1)`.
 
-After constructing the Evaluator object, you can perform the evaluation using `evaluator.evaluate()`.
+After constructing the Evaluator object, you can perform the evaluation using `evaluator.evaluate(df)`, where `df` is your Spark `DataFrame`.
 
 ## What does it output?
 The output format goes like this:

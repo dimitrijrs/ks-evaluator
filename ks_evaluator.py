@@ -18,12 +18,11 @@ class KolmogorovSmirnovEvaluator:
     DISTANCE = '__distance__'
     PARTITION = '__partition__'
 
-    def __init__(self, df: DataFrame, probability_col: str, actual_label_col: str,
+    def __init__(self, probability_col: str, actual_label_col: str,
                  positive_label: Optional[Union[int, float, str]] = None,
                  negative_label: Optional[Union[int, float, str]] = None,
                  probability_partitions: Optional[List[float]] = None):
 
-        self.df = df.select(probability_col, actual_label_col)
         self.probability_col = probability_col
         self.actual_label_col = actual_label_col
         self.p = positive_label
@@ -52,9 +51,9 @@ class KolmogorovSmirnovEvaluator:
             .select(F.col(self.probability_col), F.col(self.EMPIRICAL_CDF).alias(self.EMPIRICAL_CDF_POS))
         return df_cdf_0, df_cdf_1
 
-    def _get_ks_df(self, df_cdf_0: DataFrame, df_cdf_1: DataFrame) -> DataFrame:
+    def _get_distances(self, prob_df: DataFrame, df_cdf_0: DataFrame, df_cdf_1: DataFrame) -> DataFrame:
         window_fill = Window.orderBy(self.probability_col).rowsBetween(Window.unboundedPreceding, Window.currentRow)
-        df_ks = self.df.select(self.probability_col) \
+        df_ks = prob_df.select(self.probability_col) \
             .join(df_cdf_0, on=self.probability_col, how='left') \
             .join(df_cdf_1, on=self.probability_col, how='left') \
             .withColumn(self.EMPIRICAL_CDF_NEG, F.last(self.EMPIRICAL_CDF_NEG, ignorenulls=True).over(window_fill)) \
@@ -63,9 +62,9 @@ class KolmogorovSmirnovEvaluator:
             .withColumn(self.DISTANCE, F.abs(F.col(self.EMPIRICAL_CDF_NEG) - F.col(self.EMPIRICAL_CDF_POS)))
         return df_ks
 
-    def _get_ks_statistic(self, df_ks: DataFrame) -> dict:
+    def _get_ks_statistic(self, df_distances: DataFrame) -> dict:
         if not self.partitions:
-            ks_stat_row = df_ks.agg(F.max(self.DISTANCE).alias(self.DISTANCE)).collect()
+            ks_stat_row = df_distances.agg(F.max(self.DISTANCE).alias(self.DISTANCE)).collect()
             ks_stat = ks_stat_row[0][self.DISTANCE]
 
             result = {
@@ -77,7 +76,7 @@ class KolmogorovSmirnovEvaluator:
                 ]
             }
         else:
-            df_ks_partitioned = df_ks.withColumn(self.PARTITION, F.lit(0))
+            df_ks_partitioned = df_distances.withColumn(self.PARTITION, F.lit(0))
 
             for idx, threshold in enumerate(self.partitions):
                 df_ks_partitioned = df_ks_partitioned\
@@ -109,8 +108,10 @@ class KolmogorovSmirnovEvaluator:
 
         return result
 
-    def evaluate(self):
-        df_counts = self.df.groupBy(self.actual_label_col).count()
+    def evaluate(self, df: DataFrame):
+
+        prob_df = df.select(self.probability_col, self.actual_label_col)
+        df_counts = prob_df.groupBy(self.actual_label_col).count()
 
         assert len(df_counts.take(1+self.NO_SAMPLES)) == self.NO_SAMPLES, 'Kolmogorov-Smirnov evaluator is for ' \
                                                                           'binary classification only.'
@@ -118,10 +119,8 @@ class KolmogorovSmirnovEvaluator:
         if not self.p or not self.n:
             self._set_labels_from_count_aggregate(df_counts)
 
-        df_cdf_0, df_cdf_1 = self._get_cdfs(self.df, df_counts)
-
-        df_ks = self._get_ks_df(df_cdf_0, df_cdf_1)
-
-        result = self._get_ks_statistic(df_ks)
+        df_cdf_0, df_cdf_1 = self._get_cdfs(prob_df, df_counts)
+        df_distances = self._get_distances(prob_df, df_cdf_0, df_cdf_1)
+        result = self._get_ks_statistic(df_distances)
 
         return result
